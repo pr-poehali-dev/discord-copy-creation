@@ -1,0 +1,32 @@
+{
+  "tests": [
+    {
+      "name": "Get messages for channel",
+      "method": "GET",
+      "path": "/?channel_id=1",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "messages": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Send message to channel",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "channel_id": 1,
+        "user_id": 1,
+        "content": "Hello world!"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "message": {
+          "id": "number",
+          "content": "string"
+        }
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
