@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get contacts for user",
+      "method": "GET",
+      "path": "/?user_id=1",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "contacts": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Add friend",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "user_id": 1,
+        "friend_id": 2
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "message": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

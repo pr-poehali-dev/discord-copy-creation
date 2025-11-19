@@ -10,6 +10,7 @@ const API_URLS = {
   auth: 'https://functions.poehali.dev/3e44251f-4b4d-4b14-835e-1a64b73d6f50',
   messages: 'https://functions.poehali.dev/94d25c78-0d81-4778-be0d-be15b72364a8',
   servers: 'https://functions.poehali.dev/d66d043c-8989-477c-bff6-80b2774216ba',
+  contacts: 'https://functions.poehali.dev/361861d6-5f30-46d6-baa6-6bffd39e06e4',
 };
 
 interface User {
@@ -50,6 +51,8 @@ const Index = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [showContacts, setShowContacts] = useState(false);
+  const [contacts, setContacts] = useState<User[]>([]);
 
   const [authForm, setAuthForm] = useState({
     username: '',
@@ -69,6 +72,7 @@ const Index = () => {
   useEffect(() => {
     if (user) {
       loadServers();
+      loadContacts();
     }
   }, [user]);
 
@@ -124,6 +128,16 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Auth failed:', error);
+    }
+  };
+
+  const loadContacts = async () => {
+    try {
+      const response = await fetch(`${API_URLS.contacts}?user_id=${user?.id}`);
+      const data = await response.json();
+      setContacts(data.contacts || []);
+    } catch (error) {
+      console.error('Failed to load contacts:', error);
     }
   };
 
@@ -234,17 +248,35 @@ const Index = () => {
   return (
     <div className="h-screen flex bg-background">
       <div className="w-20 bg-sidebar flex flex-col items-center py-4 space-y-3">
+        <button
+          onClick={() => {
+            setShowContacts(true);
+            setSelectedServer(null);
+            setSelectedChannel(null);
+          }}
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl transition-all hover:rounded-xl ${
+            showContacts
+              ? 'bg-primary text-primary-foreground rounded-xl'
+              : 'bg-sidebar-accent hover:bg-primary hover:text-primary-foreground'
+          }`}
+        >
+          <Icon name="Users" size={24} />
+        </button>
+
+        <div className="w-8 h-0.5 bg-sidebar-accent rounded-full" />
+
         {servers.map((server) => (
           <button
             key={server.id}
             onClick={() => {
+              setShowContacts(false);
               setSelectedServer(server);
               if (server.channels && server.channels.length > 0) {
                 setSelectedChannel(server.channels[0]);
               }
             }}
             className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl transition-all hover:rounded-xl ${
-              selectedServer?.id === server.id
+              selectedServer?.id === server.id && !showContacts
                 ? 'bg-primary text-primary-foreground rounded-xl'
                 : 'bg-sidebar-accent hover:bg-primary hover:text-primary-foreground'
             }`}
@@ -259,28 +291,52 @@ const Index = () => {
 
       <div className="w-60 bg-card flex flex-col">
         <div className="h-12 border-b border-border flex items-center px-4 font-semibold">
-          {selectedServer?.name}
+          {showContacts ? 'Контакты' : selectedServer?.name}
         </div>
         <ScrollArea className="flex-1 px-2">
-          <div className="py-2 space-y-1">
-            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">
-              ТЕКСТОВЫЕ КАНАЛЫ
+          {showContacts ? (
+            <div className="py-2 space-y-1">
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">
+                ВСЕ ПОЛЬЗОВАТЕЛИ
+              </div>
+              {contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="w-full flex items-center gap-2 px-2 py-2 hover:bg-sidebar-accent rounded transition-colors"
+                >
+                  <Avatar className="w-8 h-8">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {contact.username?.[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{contact.username}</div>
+                    <div className="text-xs text-muted-foreground">{contact.status || 'онлайн'}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            {selectedServer?.channels.map((channel) => (
-              <button
-                key={channel.id}
-                onClick={() => setSelectedChannel(channel)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-sidebar-accent transition-colors ${
-                  selectedChannel?.id === channel.id
-                    ? 'bg-sidebar-accent text-foreground'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                <Icon name="Hash" size={20} />
-                <span className="text-sm">{channel.name}</span>
-              </button>
-            ))}
-          </div>
+          ) : (
+            <div className="py-2 space-y-1">
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">
+                ТЕКСТОВЫЕ КАНАЛЫ
+              </div>
+              {selectedServer?.channels.map((channel) => (
+                <button
+                  key={channel.id}
+                  onClick={() => setSelectedChannel(channel)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-sidebar-accent transition-colors ${
+                    selectedChannel?.id === channel.id
+                      ? 'bg-sidebar-accent text-foreground'
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  <Icon name="Hash" size={20} />
+                  <span className="text-sm">{channel.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </ScrollArea>
 
         <div className="h-14 border-t border-border flex items-center px-2 gap-2">
@@ -308,57 +364,102 @@ const Index = () => {
       </div>
 
       <div className="flex-1 flex flex-col">
-        <div className="h-12 border-b border-border flex items-center px-4 gap-2">
-          <Icon name="Hash" size={20} className="text-muted-foreground" />
-          <span className="font-semibold">{selectedChannel?.name}</span>
-        </div>
-
-        <ScrollArea className="flex-1 px-4">
-          <div className="py-4 space-y-4">
-            {messages.length === 0 && (
-              <div className="text-center text-muted-foreground py-12">
-                <Icon name="MessageSquare" size={48} className="mx-auto mb-2 opacity-50" />
-                <p>Пока нет сообщений в этом канале</p>
-              </div>
-            )}
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3 hover:bg-muted/50 px-3 py-2 rounded">
-                <Avatar>
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {message.username?.[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-medium text-sm">{message.username}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(message.created_at).toLocaleTimeString('ru-RU', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+        {showContacts ? (
+          <>
+            <div className="h-12 border-b border-border flex items-center px-4 gap-2">
+              <Icon name="Users" size={20} className="text-muted-foreground" />
+              <span className="font-semibold">Все пользователи</span>
+            </div>
+            <ScrollArea className="flex-1 px-4">
+              <div className="py-6 space-y-4">
+                {contacts.map((contact) => (
+                  <div
+                    key={contact.id}
+                    className="flex items-center gap-4 p-4 bg-card rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <Avatar className="w-12 h-12">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+                        {contact.username?.[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="font-semibold text-foreground">{contact.username}</div>
+                      <div className="text-sm text-muted-foreground">{contact.email || 'Нет email'}</div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">{contact.status || 'онлайн'}</span>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline">
+                      <Icon name="MessageCircle" size={16} className="mr-2" />
+                      Написать
+                    </Button>
                   </div>
-                  <p className="text-sm text-foreground">{message.content}</p>
-                </div>
+                ))}
+                {contacts.length === 0 && (
+                  <div className="text-center text-muted-foreground py-12">
+                    <Icon name="Users" size={48} className="mx-auto mb-2 opacity-50" />
+                    <p>Пока нет контактов</p>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </ScrollArea>
+            </ScrollArea>
+          </>
+        ) : (
+          <>
+            <div className="h-12 border-b border-border flex items-center px-4 gap-2">
+              <Icon name="Hash" size={20} className="text-muted-foreground" />
+              <span className="font-semibold">{selectedChannel?.name}</span>
+            </div>
 
-        <div className="p-4">
-          <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-2">
-            <Input
-              placeholder={`Написать в #${selectedChannel?.name}`}
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              className="border-0 bg-transparent focus-visible:ring-0"
-            />
-            <Button size="icon" variant="ghost" onClick={sendMessage}>
-              <Icon name="Send" size={20} />
-            </Button>
-          </div>
-        </div>
+            <ScrollArea className="flex-1 px-4">
+              <div className="py-4 space-y-4">
+                {messages.length === 0 && (
+                  <div className="text-center text-muted-foreground py-12">
+                    <Icon name="MessageSquare" size={48} className="mx-auto mb-2 opacity-50" />
+                    <p>Пока нет сообщений в этом канале</p>
+                  </div>
+                )}
+                {messages.map((message) => (
+                  <div key={message.id} className="flex gap-3 hover:bg-muted/50 px-3 py-2 rounded">
+                    <Avatar>
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {message.username?.[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-medium text-sm">{message.username}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(message.created_at).toLocaleTimeString('ru-RU', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground">{message.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+
+            <div className="p-4">
+              <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-2">
+                <Input
+                  placeholder={`Написать в #${selectedChannel?.name}`}
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  className="border-0 bg-transparent focus-visible:ring-0"
+                />
+                <Button size="icon" variant="ghost" onClick={sendMessage}>
+                  <Icon name="Send" size={20} />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
